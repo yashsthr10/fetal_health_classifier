@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . /app
 
-RUN pip install --no-cache-dir fastapi uvicorn pandas jinja2
+RUN pip install --no-cache-dir fastapi uvicorn pandas jinja2 xgboost
 
 EXPOSE 8000
 

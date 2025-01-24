@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from model.inference import model
+from inference import model
 import pandas as pd
 
 
