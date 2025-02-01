@@ -3,31 +3,49 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'yashsthr/fetal_health_detector'
-        K8S_DEPLOYMENT_FILE = 'deployment.yaml' 
+        K8S_DEPLOYMENT_FILE = 'deployment.yaml'
     }
 
     stages {
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/yashsthr10/fetal_health_classifier.git' // Replace with your GitHub repo URL
+                git branch: 'main', url: 'https://github.com/yashsthr10/fetal_health_classifier.git' // Ensure correct branch
             }
         }
 
         stage('Convert Jupyter Notebook to Python Script') {
             steps {
-                sh 'jupyter nbconvert --to script fetal_health_classifier.ipynb' // Converts the .ipynb to .py
+                script {
+                    if (isUnix()) {
+                        sh 'jupyter nbconvert --to script fetal_health_classifier.ipynb'
+                    } else {
+                        bat 'jupyter nbconvert --to script fetal_health_classifier.ipynb'
+                    }
+                }
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'docker build -t ${DOCKER_IMAGE} .' // Build the Docker image from your Dockerfile
+                script {
+                    if (isUnix()) {
+                        sh 'docker build -t ${DOCKER_IMAGE} .'
+                    } else {
+                        bat 'docker build -t ${DOCKER_IMAGE} .'
+                    }
+                }
             }
         }
 
         stage('Train Model') {
             steps {
-                sh 'docker run --rm -v $(pwd):/app ${DOCKER_IMAGE} python fetal_health_classifier.py' // Run model training in the container
+                script {
+                    if (isUnix()) {
+                        sh 'docker run --rm -v $(pwd):/app ${DOCKER_IMAGE} python fetal_health_classifier.py'
+                    } else {
+                        bat 'docker run --rm -v $(pwd):/app ${DOCKER_IMAGE} python fetal_health_classifier.py'
+                    }
+                }
             }
         }
 
@@ -35,21 +53,38 @@ pipeline {
             steps {
                 script {
                     // Log in to Docker Hub
-                    sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
+                    if (isUnix()) {
+                        sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
+                    } else {
+                        bat 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
+                    }
                     
                     // Build the Docker image
-                    sh 'docker build -t ${DOCKER_IMAGE} .'
+                    if (isUnix()) {
+                        sh 'docker build -t ${DOCKER_IMAGE} .'
+                    } else {
+                        bat 'docker build -t ${DOCKER_IMAGE} .'
+                    }
                     
                     // Push the Docker image to Docker Hub
-                    sh 'docker push ${DOCKER_IMAGE}'
+                    if (isUnix()) {
+                        sh 'docker push ${DOCKER_IMAGE}'
+                    } else {
+                        bat 'docker push ${DOCKER_IMAGE}'
+                    }
                 }
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                // Apply your Kubernetes YAML file
-                sh 'kubectl apply -f ${K8S_DEPLOYMENT_FILE}'
+                script {
+                    if (isUnix()) {
+                        sh 'kubectl apply -f ${K8S_DEPLOYMENT_FILE}'
+                    } else {
+                        bat 'kubectl apply -f ${K8S_DEPLOYMENT_FILE}'
+                    }
+                }
             }
         }
     }
