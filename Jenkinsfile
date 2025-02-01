@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO.git' // Replace with your GitHub repo URL
+                git 'https://github.com/yashsthr10/fetal_health_classifier.git' // Replace with your GitHub repo URL
             }
         }
 
