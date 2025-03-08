@@ -1,0 +1,90 @@
+name: CI/CD Pipeline for Notebook Training and GCP Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir fastapi==0.104.0 uvicorn==0.23.2 starlette==0.27.0 pandas jinja2 xgboost papermill
+      
+      - name: Run Training Notebook with Papermill
+        run: |
+          # Create model directory if it doesn't exist
+          mkdir -p model
+          # Run the notebook with papermill
+          papermill Train.ipynb output_notebook.ipynb -p data_path data/fetal_health.csv
+      
+      - name: Save Trained Model Artifact
+        run: |
+          mkdir -p artifacts
+          # The correct path to copy from (model directory) to artifacts
+          cp model/model.pkl artifacts/
+      
+      - name: Upload Model Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: trained-model
+          path: artifacts/model.pkl
+
+  deploy:
+    needs: retrain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      
+      - name: Download Model Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: trained-model
+          path: model
+      
+      - name: Configure Docker
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+      
+      - name: Configure Docker for GCR
+        run: |
+          gcloud auth configure-docker
+      
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/fastapi-ml-app:${{ github.sha }} .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/fastapi-ml-app:${{ github.sha }}
+      
+      - name: Deploy to GKE
+        run: |
+          gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER }} --zone ${{ secrets.GKE_ZONE }}
+          
+          # Apply Kubernetes manifests with updated image
+          # First create a temporary deployment file with the correct image
+          envsubst < kubernetes/deployment.yaml > deployment_with_image.yaml
+          kubectl apply -f deployment_with_image.yaml
+          kubectl apply -f kubernetes/service.yaml
+          
+          # Verify deployment
+          kubectl rollout status deployment/fastapi-ml-deployment
