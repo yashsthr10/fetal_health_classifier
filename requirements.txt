@@ -5,3 +5,4 @@ pandas
 jinja2
 xgboost
 scikit-learn
+python-multipart
