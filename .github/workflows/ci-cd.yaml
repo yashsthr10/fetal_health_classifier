@@ -18,8 +18,8 @@ jobs:
 
     - name: Deploy to Cloud Run
       run: |
-        gcloud builds submit --tag gcr.io/${{ secrets.PROJECT_ID }}/fetalhealthapp
-        gcloud run deploy my-ml-api \
+        gcloud builds submit --tag gcr.io/${{ secrets.PROJECT_ID }}/fetalhealthapp  --project=${{ secrets.PROJECT_ID }}
+        gcloud run deploy fetalhealthapp \
           --image gcr.io/${{ secrets.PROJECT_ID }}/fetalhealthapp \
           --platform managed \
           --region asia-south1 \
